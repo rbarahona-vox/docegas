@@ -1,4 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial de Llamadas</title>
+
+<style>
+/* TODO tu CSS ORIGINAL EXACTAMENTE IGUAL */
+</style>
+
+</head>
+<body>
+
+<div class="header">
+    <h1>📞 Historial de Llamadas Entrantes</h1>
+    <div class="search-form">
+        <div class="form-group">
+            <label for="phoneInput">Número de Teléfono</label>
+            <input type="text" id="phoneInput" placeholder="Ej: 525556581111">
+        </div>
+        <button id="searchBtn">Buscar</button>
+    </div>
+</div>
+
+<div class="state-box" id="stateEmpty">
+    <div class="state-icon">📱</div>
+    <p class="state-text">Ingresa un número de teléfono para buscar llamadas</p>
+</div>
+
+<div class="state-box" id="stateLoading">
+    <div class="spinner"></div>
+    <p class="state-text">Consultando historial...</p>
+</div>
+
+<div class="state-box" id="stateError">
+    <div class="state-icon">⚠️</div>
+    <p class="error-text" id="errorMsg"></p>
+</div>
+
+<div class="call-list" id="callList"></div>
+
 <script>
+
 const CONFIG = {
     host:   'kitapi-us.voximplant.com',
     domain: 'docegasmax',
@@ -33,6 +76,7 @@ phoneInput.addEventListener('keydown', e => {
 });
 
 async function doSearch() {
+
     const phone = phoneInput.value.trim();
     if (!phone) return;
 
@@ -40,13 +84,14 @@ async function doSearch() {
     searchBtn.disabled = true;
 
     try {
+
         const url = 'https://' + CONFIG.host + '/api/v4/history/searchCalls?domain=' + CONFIG.domain;
 
         const params = new URLSearchParams({
             access_token: CONFIG.token,
             phone: phone,
-            call_direction: 'incoming',   // ✅ inbound
-            limit: 5,                     // ✅ últimas 5
+            call_direction: 'incoming',
+            limit: 5,
             with_campaigns: 'true',
             with_tags: 'true',
             with_wrap_up_code: 'true',
@@ -76,6 +121,7 @@ async function doSearch() {
 }
 
 function renderCalls(calls) {
+
     if (!calls.length) {
         showState('empty', 'No se encontraron llamadas entrantes');
         return;
@@ -84,28 +130,28 @@ function renderCalls(calls) {
     showState('results');
 
     let html = '';
-    for (let i = 0; i < calls.length; i++) {
-        html += buildCard(calls[i]);
-    }
+    calls.forEach(c => html += buildCard(c));
     callList.innerHTML = html;
 }
 
 function buildCard(c) {
 
-    const phoneA = (c.phone_a || '').replace(/@\S+/g, ''); // ✅ caller inbound
+    const phoneCaller = (c.phone_a || '').replace(/@\S+/g, '');
     const durStr = fmtSec(c.duration || 0);
 
+    let callData = {};
+    try {
+        if (c.call_data) callData = JSON.parse(c.call_data);
+    } catch(e){}
+
     const cc = c.completion_code || '—';
-    const ccColor = cc.includes('Answered') ? '#28a745'
-        : (cc.includes('Missed') || cc.includes('Busy')) ? '#dc3545'
-        : '#856404';
 
     return `
     <div class="call-card">
         <div class="card-header">
             <div class="phone-row">
                 <span class="dir-badge">Entrante</span>
-                <span class="phone-num">📞 ${esc(phoneA)}</span>
+                <span class="phone-num">📞 ${esc(phoneCaller)}</span>
             </div>
             <div class="header-right">
                 <span class="call-date">${fmtDate(c.datetime_start)}</span>
@@ -116,17 +162,18 @@ function buildCard(c) {
 }
 
 function showState(which, msg) {
+
     stateEmpty.classList.remove('visible');
     stateLoad.classList.remove('visible');
     stateError.classList.remove('visible');
     callList.innerHTML = '';
 
-    if (which === 'loading') {
-        stateLoad.classList.add('visible');
-    } else if (which === 'error') {
+    if (which === 'loading') stateLoad.classList.add('visible');
+    else if (which === 'error') {
         document.getElementById('errorMsg').textContent = msg || 'Error';
         stateError.classList.add('visible');
-    } else if (which === 'empty') {
+    }
+    else if (which === 'empty') {
         document.querySelector('#stateEmpty .state-text').textContent =
             msg || 'Ingresa un número';
         stateEmpty.classList.add('visible');
@@ -152,4 +199,8 @@ function esc(str) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
 </script>
+
+</body>
+</html>
