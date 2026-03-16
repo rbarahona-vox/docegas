@@ -3,32 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Historial de Llamadas</title>
+<title>Historial IVR</title>
 
 <style>
-/* TODO tu CSS ORIGINAL EXACTAMENTE IGUAL */
+/* 👉 TU CSS ORIGINAL COMPLETO AQUÍ (NO LO CAMBIO) */
 </style>
 
 </head>
 <body>
 
 <div class="header">
-    <h1>📞 Historial de Llamadas Entrantes</h1>
-    <div class="search-form">
-        <div class="form-group">
-            <label for="phoneInput">Número de Teléfono</label>
-            <input type="text" id="phoneInput" placeholder="Ej: 525556581111">
-        </div>
-        <button id="searchBtn">Buscar</button>
-    </div>
+    <h1 id="title">Cargando historial...</h1>
 </div>
 
-<div class="state-box" id="stateEmpty">
-    <div class="state-icon">📱</div>
-    <p class="state-text">Ingresa un número de teléfono para buscar llamadas</p>
-</div>
-
-<div class="state-box" id="stateLoading">
+<div class="state-box visible" id="stateLoading">
     <div class="spinner"></div>
     <p class="state-text">Consultando historial...</p>
 </div>
@@ -48,44 +36,26 @@ const CONFIG = {
     token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
 };
 
-const phoneInput = document.getElementById('phoneInput');
-const searchBtn  = document.getElementById('searchBtn');
-const stateEmpty = document.getElementById('stateEmpty');
-const stateLoad  = document.getElementById('stateLoading');
-const stateError = document.getElementById('stateError');
-const callList   = document.getElementById('callList');
-
-function getPhoneFromURL() {
+function getCaller(){
     const params = new URLSearchParams(window.location.search);
     return params.get('phone');
 }
 
-window.addEventListener('DOMContentLoaded', function() {
-    const phoneFromURL = getPhoneFromURL();
-    if (phoneFromURL) {
-        phoneInput.value = phoneFromURL;
-        doSearch();
-    } else {
-        showState('empty');
+async function loadHistory(){
+
+    const phone = getCaller();
+
+    if(!phone){
+        showError("No se recibió callerid");
+        return;
     }
-});
 
-searchBtn.addEventListener('click', doSearch);
-phoneInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-});
+    document.getElementById("title").innerHTML =
+        "📞 Historial de llamadas del número <b>" + phone + "</b>";
 
-async function doSearch() {
+    try{
 
-    const phone = phoneInput.value.trim();
-    if (!phone) return;
-
-    showState('loading');
-    searchBtn.disabled = true;
-
-    try {
-
-        const url = 'https://' + CONFIG.host + '/api/v4/history/searchCalls?domain=' + CONFIG.domain;
+        const url = `https://${CONFIG.host}/api/v4/history/searchCalls?domain=${CONFIG.domain}`;
 
         const params = new URLSearchParams({
             access_token: CONFIG.token,
@@ -100,58 +70,61 @@ async function doSearch() {
             with_comments: 'true'
         });
 
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        const res = await fetch(url,{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded'},
             body: params
         });
 
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if(!res.ok) throw new Error("HTTP " + res.status);
+
         const data = await res.json();
-        if (!data.success) throw new Error('API success=false');
+
+        if(!data.success) throw new Error("API success false");
 
         renderCalls(data.result || []);
 
-    } catch (err) {
-        console.error(err);
-        showState('error', err.message);
-    } finally {
-        searchBtn.disabled = false;
+    }catch(e){
+        showError(e.message);
     }
 }
 
-function renderCalls(calls) {
+function renderCalls(calls){
 
-    if (!calls.length) {
-        showState('empty', 'No se encontraron llamadas entrantes');
+    document.getElementById("stateLoading").classList.remove("visible");
+
+    if(!calls.length){
+        document.getElementById("callList").innerHTML =
+            "<div class='state-box visible'><p>No hay historial de llamadas</p></div>";
         return;
     }
 
-    showState('results');
-
-    let html = '';
+    let html = "";
     calls.forEach(c => html += buildCard(c));
-    callList.innerHTML = html;
+    document.getElementById("callList").innerHTML = html;
 }
 
-function buildCard(c) {
+function buildCard(c){
 
-    const phoneCaller = (c.phone_a || '').replace(/@\S+/g, '');
+    const phoneA = (c.phone_a || '').replace(/@\S+/g, '');
     const durStr = fmtSec(c.duration || 0);
 
     let callData = {};
-    try {
-        if (c.call_data) callData = JSON.parse(c.call_data);
-    } catch(e){}
+    try{
+        if(c.call_data) callData = JSON.parse(c.call_data);
+    }catch(e){}
 
     const cc = c.completion_code || '—';
+    const ccColor = cc.includes('Answered') ? '#28a745'
+        : (cc.includes('Missed') || cc.includes('Busy')) ? '#dc3545'
+        : '#856404';
 
     return `
     <div class="call-card">
         <div class="card-header">
             <div class="phone-row">
                 <span class="dir-badge">Entrante</span>
-                <span class="phone-num">📞 ${esc(phoneCaller)}</span>
+                <span class="phone-num">📞 ${phoneA}</span>
             </div>
             <div class="header-right">
                 <span class="call-date">${fmtDate(c.datetime_start)}</span>
@@ -161,44 +134,26 @@ function buildCard(c) {
     </div>`;
 }
 
-function showState(which, msg) {
-
-    stateEmpty.classList.remove('visible');
-    stateLoad.classList.remove('visible');
-    stateError.classList.remove('visible');
-    callList.innerHTML = '';
-
-    if (which === 'loading') stateLoad.classList.add('visible');
-    else if (which === 'error') {
-        document.getElementById('errorMsg').textContent = msg || 'Error';
-        stateError.classList.add('visible');
-    }
-    else if (which === 'empty') {
-        document.querySelector('#stateEmpty .state-text').textContent =
-            msg || 'Ingresa un número';
-        stateEmpty.classList.add('visible');
-    }
+function showError(msg){
+    document.getElementById("stateLoading").classList.remove("visible");
+    document.getElementById("errorMsg").innerText = msg;
+    document.getElementById("stateError").classList.add("visible");
 }
 
-function fmtDate(str) {
-    if (!str) return 'N/A';
+function fmtDate(str){
+    if(!str) return "N/A";
     const d = new Date(str.replace(' ', 'T'));
     return d.toLocaleString();
 }
 
-function fmtSec(s) {
-    s = parseInt(s) || 0;
-    if (s < 60) return s + 's';
-    const m = Math.floor(s / 60), r = s % 60;
-    return r ? (m + 'm ' + r + 's') : (m + 'm');
+function fmtSec(s){
+    s = parseInt(s)||0;
+    if(s<60) return s+"s";
+    const m=Math.floor(s/60), r=s%60;
+    return r? m+"m "+r+"s" : m+"m";
 }
 
-function esc(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+loadHistory();
 
 </script>
 
