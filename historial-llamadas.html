@@ -4,158 +4,453 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Historial IVR</title>
-
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* 👉 TU CSS ORIGINAL COMPLETO AQUÍ (NO LO CAMBIO) */
-</style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+  :root {
+    --bg:        #0d0f14;
+    --bg2:       #13161d;
+    --bg3:       #1a1e27;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.12);
+    --text:      #e8eaf0;
+    --muted:     #6b7280;
+    --accent:    #4f7cff;
+    --accent-bg: rgba(79,124,255,0.10);
+    --success:   #22c55e;
+    --success-bg:rgba(34,197,94,0.10);
+    --danger:    #f87171;
+    --danger-bg: rgba(248,113,113,0.10);
+    --warn:      #fbbf24;
+    --warn-bg:   rgba(251,191,36,0.10);
+    --radius:    10px;
+    --radius-sm: 6px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ─────────────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px 10px;
+  }
+  .header-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .header-phone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-phone svg { flex-shrink: 0; opacity: .6; }
+  .phone-number {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: .02em;
+  }
+
+  /* ── States ──────────────────────────────── */
+  .state-box {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .state-box.visible { display: flex; }
+
+  .spinner {
+    width: 22px; height: 22px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .state-icon { font-size: 22px; }
+  .error-text { color: var(--danger); font-size: 12px; max-width: 200px; }
+
+  /* ── Empty banner ────────────────────────── */
+  .empty-banner {
+    margin: 12px 12px 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .empty-banner strong { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; }
+
+  /* ── Call list ───────────────────────────── */
+  .call-list {
+    padding: 10px 10px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* ── Call card ───────────────────────────── */
+  .call-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .call-card:hover { border-color: var(--border2); }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 8px;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .dot-success { background: var(--success); box-shadow: 0 0 0 3px var(--success-bg); }
+  .dot-danger  { background: var(--danger);  box-shadow: 0 0 0 3px var(--danger-bg);  }
+  .dot-warn    { background: var(--warn);    box-shadow: 0 0 0 3px var(--warn-bg);    }
+
+  .card-main { flex: 1; min-width: 0; }
+
+  .card-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  .caller-num {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .duration-pill {
+    font-size: 11px;
+    font-family: var(--mono);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1px 7px;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .card-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .datetime {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .cc-badge {
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    padding: 1px 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cc-success { background: var(--success-bg); color: var(--success); }
+  .cc-danger  { background: var(--danger-bg);  color: var(--danger);  }
+  .cc-warn    { background: var(--warn-bg);     color: var(--warn);   }
+
+  /* ── Agent row ───────────────────────────── */
+  .card-bottom {
+    border-top: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .agent-avatar {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .agent-name {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Summary strip ───────────────────────── */
+  .summary-strip {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+  .summary-strip.visible { display: grid; }
+  .stat-cell {
+    background: var(--bg);
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  /* ── Skeleton loader ─────────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -300px 0; }
+    100% { background-position: 300px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: var(--radius-sm);
+  }
+  .skel-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .skel-row { display: flex; gap: 8px; align-items: center; }
+</style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="title">Cargando historial...</h1>
+<!-- Header -->
+<div class="header" id="header">
+  <div class="header-label">Llamante</div>
+  <div class="header-phone">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 2.09 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>
+    <span class="phone-number" id="phoneDisplay">—</span>
+  </div>
 </div>
 
-<div class="state-box visible" id="stateLoading">
-    <div class="spinner"></div>
-    <p class="state-text">Consultando historial...</p>
+<!-- Summary strip (shown after load) -->
+<div class="summary-strip" id="summaryStrip">
+  <div class="stat-cell"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Llamadas</div></div>
+  <div class="stat-cell"><div class="stat-val" id="statAnswered">—</div><div class="stat-lbl">Atendidas</div></div>
+  <div class="stat-cell"><div class="stat-val" id="statAvg">—</div><div class="stat-lbl">Prom.</div></div>
 </div>
 
+<!-- Loading skeletons -->
+<div id="stateLoading" class="state-box visible">
+  <div class="spinner"></div>
+</div>
+
+<!-- Error -->
 <div class="state-box" id="stateError">
-    <div class="state-icon">⚠️</div>
-    <p class="error-text" id="errorMsg"></p>
+  <div class="state-icon">⚠</div>
+  <p class="error-text" id="errorMsg"></p>
 </div>
 
+<!-- Call cards -->
 <div class="call-list" id="callList"></div>
 
 <script>
-
 const CONFIG = {
-    host:   'kitapi-us.voximplant.com',
-    domain: 'docegasmax',
-    token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
+  host:   'kitapi-us.voximplant.com',
+  domain: 'docegasmax',
+  token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
 };
 
 function getCaller(){
-    const params = new URLSearchParams(window.location.search);
-    return params.get('phone');
+  return new URLSearchParams(window.location.search).get('phone');
 }
 
 async function loadHistory(){
+  const phone = getCaller();
 
-    const phone = getCaller();
+  if(!phone){
+    showError('No se recibió callerid');
+    return;
+  }
 
-    if(!phone){
-        showError("No se recibió callerid");
-        return;
-    }
+  document.getElementById('phoneDisplay').textContent = phone;
 
-    document.getElementById("title").innerHTML =
-        "📞 Historial de llamadas del número <b>" + phone + "</b>";
+  try {
+    const url = `https://${CONFIG.host}/api/v4/history/searchCalls?domain=${CONFIG.domain}`;
+    const params = new URLSearchParams({
+      access_token: CONFIG.token,
+      phone,
+      call_direction: 'incoming',
+      limit: 10,
+      with_campaigns: 'true',
+      with_tags: 'true',
+      with_wrap_up_code: 'true',
+      with_agent_campaign: 'true',
+      with_topics: 'true',
+      with_comments: 'true'
+    });
 
-    try{
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    });
 
-        const url = `https://${CONFIG.host}/api/v4/history/searchCalls?domain=${CONFIG.domain}`;
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if(!data.success) throw new Error('API error');
 
-        const params = new URLSearchParams({
-            access_token: CONFIG.token,
-            phone: phone,
-            call_direction: 'incoming',
-            limit: 5,
-            with_campaigns: 'true',
-            with_tags: 'true',
-            with_wrap_up_code: 'true',
-            with_agent_campaign: 'true',
-            with_topics: 'true',
-            with_comments: 'true'
-        });
+    renderCalls(data.result || []);
 
-        const res = await fetch(url,{
-            method:'POST',
-            headers:{'Content-Type':'application/x-www-form-urlencoded'},
-            body: params
-        });
-
-        if(!res.ok) throw new Error("HTTP " + res.status);
-
-        const data = await res.json();
-
-        if(!data.success) throw new Error("API success false");
-
-        renderCalls(data.result || []);
-
-    }catch(e){
-        showError(e.message);
-    }
+  } catch(e) {
+    showError(e.message);
+  }
 }
 
 function renderCalls(calls){
+  document.getElementById('stateLoading').classList.remove('visible');
 
-    document.getElementById("stateLoading").classList.remove("visible");
+  if(!calls.length){
+    document.getElementById('callList').innerHTML =
+      `<div class="empty-banner"><strong>Sin historial</strong>Primera vez que llama este número</div>`;
+    return;
+  }
 
-    if(!calls.length){
-        document.getElementById("callList").innerHTML =
-            "<div class='state-box visible'><p>No hay historial de llamadas</p></div>";
-        return;
-    }
+  // Summary stats
+  const answered = calls.filter(c => (c.completion_code||'').toLowerCase().includes('answer'));
+  const avgSec   = Math.round(calls.reduce((a,c) => a + (parseInt(c.duration)||0), 0) / calls.length);
 
-    let html = "";
-    calls.forEach(c => html += buildCard(c));
-    document.getElementById("callList").innerHTML = html;
+  document.getElementById('statTotal').textContent    = calls.length;
+  document.getElementById('statAnswered').textContent = answered.length;
+  document.getElementById('statAvg').textContent      = fmtSec(avgSec);
+  document.getElementById('summaryStrip').classList.add('visible');
+
+  document.getElementById('callList').innerHTML = calls.map(buildCard).join('');
 }
 
 function buildCard(c){
+  const phone     = (c.phone_a || '').replace(/@\S+/g, '') || '—';
+  const dur       = fmtSec(parseInt(c.duration) || 0);
+  const date      = fmtDate(c.datetime_start);
+  const cc        = c.completion_code || '';
+  const agent     = c.agent_id || c.agent || '';
 
-    const phoneA = (c.phone_a || '').replace(/@\S+/g, '');
-    const durStr = fmtSec(c.duration || 0);
+  let dotClass = 'dot-warn', badgeClass = 'cc-warn', badgeLabel = 'Sin código';
+  if(cc.toLowerCase().includes('answer')){
+    dotClass = 'dot-success'; badgeClass = 'cc-success'; badgeLabel = 'Atendida';
+  } else if(cc.toLowerCase().includes('miss') || cc.toLowerCase().includes('busy') || cc.toLowerCase().includes('abandon')){
+    dotClass = 'dot-danger'; badgeClass = 'cc-danger'; badgeLabel = 'No atendida';
+  } else if(cc){
+    badgeLabel = cc.length > 16 ? cc.slice(0,14)+'…' : cc;
+  }
 
-    let callData = {};
-    try{
-        if(c.call_data) callData = JSON.parse(c.call_data);
-    }catch(e){}
+  const agentSection = agent ? `
+    <div class="card-bottom">
+      <div class="agent-avatar">${agent.toString().slice(0,2)}</div>
+      <span class="agent-name">${agent}</span>
+    </div>` : '';
 
-    const cc = c.completion_code || '—';
-    const ccColor = cc.includes('Answered') ? '#28a745'
-        : (cc.includes('Missed') || cc.includes('Busy')) ? '#dc3545'
-        : '#856404';
-
-    return `
-    <div class="call-card">
-        <div class="card-header">
-            <div class="phone-row">
-                <span class="dir-badge">Entrante</span>
-                <span class="phone-num">📞 ${phoneA}</span>
-            </div>
-            <div class="header-right">
-                <span class="call-date">${fmtDate(c.datetime_start)}</span>
-                <span class="call-duration">${durStr}</span>
-            </div>
+  return `
+  <div class="call-card">
+    <div class="card-top">
+      <div class="status-dot ${dotClass}"></div>
+      <div class="card-main">
+        <div class="card-row1">
+          <span class="caller-num">${phone}</span>
+          <span class="duration-pill">${dur}</span>
         </div>
-    </div>`;
+        <div class="card-row2">
+          <span class="datetime">${date}</span>
+          <span class="cc-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+      </div>
+    </div>
+    ${agentSection}
+  </div>`;
 }
 
 function showError(msg){
-    document.getElementById("stateLoading").classList.remove("visible");
-    document.getElementById("errorMsg").innerText = msg;
-    document.getElementById("stateError").classList.add("visible");
+  document.getElementById('stateLoading').classList.remove('visible');
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('stateError').classList.add('visible');
 }
 
 function fmtDate(str){
-    if(!str) return "N/A";
+  if(!str) return '—';
+  try {
     const d = new Date(str.replace(' ', 'T'));
-    return d.toLocaleString();
+    return d.toLocaleString('es-CO', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  } catch(e){ return str; }
 }
 
 function fmtSec(s){
-    s = parseInt(s)||0;
-    if(s<60) return s+"s";
-    const m=Math.floor(s/60), r=s%60;
-    return r? m+"m "+r+"s" : m+"m";
+  s = parseInt(s) || 0;
+  if(s < 60) return s + 's';
+  const m = Math.floor(s/60), r = s%60;
+  return r ? m+'m '+r+'s' : m+'m';
 }
 
 loadHistory();
-
 </script>
-
 </body>
 </html>
