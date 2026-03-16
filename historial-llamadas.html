@@ -1,545 +1,155 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Llamadas</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 8px;
-            font-size: 11px;
-        }
-
-        .header {
-            background: white;
-            padding: 10px 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 8px;
-        }
-
-        h1 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
-
-        .search-form { display: flex; gap: 8px; align-items: flex-end; }
-        .form-group { flex: 1; display: flex; flex-direction: column; }
-        label { font-weight: 600; color: #555; margin-bottom: 3px; font-size: 11px; }
-
-        input[type="text"] {
-            padding: 6px 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            font-size: 11px;
-            outline: none;
-            transition: border-color 0.2s;
-            color: #333;
-        }
-        input[type="text"]:focus { border-color: #667eea; }
-
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            height: 28px;
-            white-space: nowrap;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-        button:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        /* STATE BOXES */
-        .state-box {
-            background: white;
-            border-radius: 8px;
-            padding: 24px 16px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: none;
-        }
-        .state-box.visible { display: block; }
-
-        .spinner {
-            width: 28px; height: 28px;
-            border: 3px solid #f0f0f0;
-            border-top-color: #667eea;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .state-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.35; }
-        .state-text { color: #888; font-size: 11px; }
-        .error-text { color: #dc3545; font-size: 11px; }
-
-        /* CALL LIST */
-        .call-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: calc(100vh - 100px);
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-        .call-list::-webkit-scrollbar { width: 5px; }
-        .call-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.2); border-radius: 4px; }
-        .call-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 4px; }
-
-        /* CALL CARD */
-        .call-card {
-            background: white;
-            border-radius: 8px;
-            overflow: visible;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-        .call-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
-
-        /* CARD HEADER */
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            border-bottom: 1px solid #f0f0f0;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .phone-row { display: flex; align-items: center; gap: 6px; }
-        .phone-num { font-size: 13px; font-weight: 700; color: #333; }
-
-        .dir-badge {
-            font-size: 9px; font-weight: 600;
-            padding: 2px 6px; border-radius: 3px;
-            text-transform: uppercase;
-            background: #cce5ff; color: #004085;
-        }
-
-        .header-right { display: flex; align-items: center; gap: 6px; }
-        .call-date { font-size: 9px; color: #888; }
-        .call-duration { font-size: 10px; color: #667eea; font-weight: 600; }
-
-        /* CARD BODY */
-        .card-body {
-            padding: 10px 12px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 14px;
-            background: white;
-        }
-
-        .field { display: flex; flex-direction: column; gap: 2px; }
-        .field.full { grid-column: 1 / -1; }
-
-        .fl {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #888;
-            font-weight: 600;
-            margin-bottom: 1px;
-        }
-
-        .fv {
-            font-size: 10px;
-            color: #333;
-            word-break: break-word;
-            line-height: 1.4;
-        }
-
-        .fv.bold { font-weight: 700; }
-
-        .divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 2px 0; }
-
-        /* PILLS */
-        .pill-row { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
-        .pill { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
-        .pill-tag   { background: #e8e0ff; color: #5a3da0; }
-        .pill-topic { background: #fff3cd; color: #856404; }
-        .pill-camp  { background: #cce5ff; color: #004085; }
-
-        /* WRAPUP */
-        .wrapup-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-        .wrapup-title { font-size: 10px; font-weight: 600; color: #333; }
-        .wrapup-type { font-size: 9px; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; }
-        .wt-success { background: #d4edda; color: #155724; }
-        .wt-failure { background: #f8d7da; color: #721c24; }
-        .wt-neutral { background: #e2e3e5; color: #383d41; }
-
-        /* COMPLETION */
-        .completion-row { display: flex; align-items: center; gap: 4px; }
-        .comp-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-        /* COMMENTS */
-        .comment-block {
-            background: #f8f9fa;
-            border-left: 2px solid #667eea;
-            border-radius: 0 4px 4px 0;
-            padding: 5px 8px;
-            margin-top: 3px;
-        }
-        .comment-text { font-size: 10px; color: #333; line-height: 1.3; }
-        .comment-date { font-size: 8px; color: #888; margin-top: 2px; }
-
-        /* CALL DATA SECTION */
-        .call-data-section {
-            grid-column: 1 / -1;
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 8px 10px;
-            margin-top: 4px;
-        }
-
-        .call-data-title {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #667eea;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .call-data-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px 10px;
-        }
-
-        .call-data-item { display: flex; flex-direction: column; gap: 1px; }
-        .call-data-label { font-size: 8px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
-        .call-data-value { font-size: 10px; color: #333; font-weight: 600; }
-
-        .no-data { color: #bbb; font-size: 9px; font-style: italic; }
-    </style>
-</head>
-<body>
-
-    <div class="header">
-        <h1>🔍 Historial de Llamadas</h1>
-        <div class="search-form">
-            <div class="form-group">
-                <label for="phoneInput">Número de Teléfono</label>
-                <input type="text" id="phoneInput" placeholder="Ej: 525556581111">
-            </div>
-            <button id="searchBtn">Buscar</button>
-        </div>
-    </div>
-
-    <div class="state-box" id="stateEmpty">
-        <div class="state-icon">📱</div>
-        <p class="state-text">Ingresa un número de teléfono para buscar llamadas</p>
-    </div>
-
-    <div class="state-box" id="stateLoading">
-        <div class="spinner"></div>
-        <p class="state-text">Consultando historial...</p>
-    </div>
-
-    <div class="state-box" id="stateError">
-        <div class="state-icon">⚠️</div>
-        <p class="error-text" id="errorMsg"></p>
-    </div>
-
-    <div class="call-list" id="callList"></div>
-
 <script>
-    const CONFIG = {
-        host:   'kitapi-us.voximplant.com',
-        domain: 'docegasmax',
-        token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
-    };
+const CONFIG = {
+    host:   'kitapi-us.voximplant.com',
+    domain: 'docegasmax',
+    token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
+};
 
-    const phoneInput = document.getElementById('phoneInput');
-    const searchBtn  = document.getElementById('searchBtn');
-    const stateEmpty = document.getElementById('stateEmpty');
-    const stateLoad  = document.getElementById('stateLoading');
-    const stateError = document.getElementById('stateError');
-    const callList   = document.getElementById('callList');
+const phoneInput = document.getElementById('phoneInput');
+const searchBtn  = document.getElementById('searchBtn');
+const stateEmpty = document.getElementById('stateEmpty');
+const stateLoad  = document.getElementById('stateLoading');
+const stateError = document.getElementById('stateError');
+const callList   = document.getElementById('callList');
 
-    // ══════════════════════════════════════════════════════════════
-    // GET PHONE FROM URL QUERY PARAM
-    // ══════════════════════════════════════════════════════════════
-    function getPhoneFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('phone');
+function getPhoneFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('phone');
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    const phoneFromURL = getPhoneFromURL();
+    if (phoneFromURL) {
+        phoneInput.value = phoneFromURL;
+        doSearch();
+    } else {
+        showState('empty');
+    }
+});
+
+searchBtn.addEventListener('click', doSearch);
+phoneInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+});
+
+async function doSearch() {
+    const phone = phoneInput.value.trim();
+    if (!phone) return;
+
+    showState('loading');
+    searchBtn.disabled = true;
+
+    try {
+        const url = 'https://' + CONFIG.host + '/api/v4/history/searchCalls?domain=' + CONFIG.domain;
+
+        const params = new URLSearchParams({
+            access_token: CONFIG.token,
+            phone: phone,
+            call_direction: 'incoming',   // ✅ inbound
+            limit: 5,                     // ✅ últimas 5
+            with_campaigns: 'true',
+            with_tags: 'true',
+            with_wrap_up_code: 'true',
+            with_agent_campaign: 'true',
+            with_topics: 'true',
+            with_comments: 'true'
+        });
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.success) throw new Error('API success=false');
+
+        renderCalls(data.result || []);
+
+    } catch (err) {
+        console.error(err);
+        showState('error', err.message);
+    } finally {
+        searchBtn.disabled = false;
+    }
+}
+
+function renderCalls(calls) {
+    if (!calls.length) {
+        showState('empty', 'No se encontraron llamadas entrantes');
+        return;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // INITIALIZE ON PAGE LOAD
-    // ══════════════════════════════════════════════════════════════
-    window.addEventListener('DOMContentLoaded', function() {
-        const phoneFromURL = getPhoneFromURL();
-        
-        if (phoneFromURL) {
-            phoneInput.value = phoneFromURL;
-            doSearch();
-        } else {
-            showState('empty');
-        }
-    });
+    showState('results');
 
-    // Manual search
-    searchBtn.addEventListener('click', doSearch);
-    phoneInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') doSearch();
-    });
-
-    async function doSearch() {
-        const phone = phoneInput.value.trim();
-        if (!phone) return;
-
-        showState('loading');
-        searchBtn.disabled = true;
-
-        try {
-            const url = 'https://' + CONFIG.host + '/api/v4/history/searchCalls?domain=' + CONFIG.domain;
-
-            const params = new URLSearchParams({
-                access_token:        CONFIG.token,
-                phone:               phone,
-                call_direction:      'outgoing',
-                with_campaigns:      'true',
-                with_tags:           'true',
-                with_wrap_up_code:   'true',
-                with_agent_campaign: 'true',
-                with_topics:         'true',
-                with_comments:       'true'
-            });
-
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params
-            });
-
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            if (!data.success) throw new Error('La API devolvió success=false');
-
-            renderCalls(data.result || []);
-
-        } catch (err) {
-            console.error(err);
-            showState('error', err.message);
-        } finally {
-            searchBtn.disabled = false;
-        }
+    let html = '';
+    for (let i = 0; i < calls.length; i++) {
+        html += buildCard(calls[i]);
     }
+    callList.innerHTML = html;
+}
 
-    function renderCalls(calls) {
-        if (!calls.length) {
-            showState('empty', 'No se encontraron llamadas salientes para este número');
-            return;
-        }
+function buildCard(c) {
 
-        showState('results');
+    const phoneA = (c.phone_a || '').replace(/@\S+/g, ''); // ✅ caller inbound
+    const durStr = fmtSec(c.duration || 0);
 
-        var html = '';
-        for (var i = 0; i < calls.length; i++) {
-            html += buildCard(calls[i]);
-        }
-        callList.innerHTML = html;
+    const cc = c.completion_code || '—';
+    const ccColor = cc.includes('Answered') ? '#28a745'
+        : (cc.includes('Missed') || cc.includes('Busy')) ? '#dc3545'
+        : '#856404';
+
+    return `
+    <div class="call-card">
+        <div class="card-header">
+            <div class="phone-row">
+                <span class="dir-badge">Entrante</span>
+                <span class="phone-num">📞 ${esc(phoneA)}</span>
+            </div>
+            <div class="header-right">
+                <span class="call-date">${fmtDate(c.datetime_start)}</span>
+                <span class="call-duration">${durStr}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function showState(which, msg) {
+    stateEmpty.classList.remove('visible');
+    stateLoad.classList.remove('visible');
+    stateError.classList.remove('visible');
+    callList.innerHTML = '';
+
+    if (which === 'loading') {
+        stateLoad.classList.add('visible');
+    } else if (which === 'error') {
+        document.getElementById('errorMsg').textContent = msg || 'Error';
+        stateError.classList.add('visible');
+    } else if (which === 'empty') {
+        document.querySelector('#stateEmpty .state-text').textContent =
+            msg || 'Ingresa un número';
+        stateEmpty.classList.add('visible');
     }
+}
 
-    function buildCard(c) {
-        const phoneB = (c.phone_b || '').replace(/@\S+/g, '');
-        const durStr = fmtSec(c.duration || 0);
+function fmtDate(str) {
+    if (!str) return 'N/A';
+    const d = new Date(str.replace(' ', 'T'));
+    return d.toLocaleString();
+}
 
-        // Parse call_data JSON
-        let callData = {};
-        try {
-            if (c.call_data) {
-                callData = JSON.parse(c.call_data);
-            }
-        } catch(e) {
-            console.error('Error parsing call_data:', e);
-        }
+function fmtSec(s) {
+    s = parseInt(s) || 0;
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60), r = s % 60;
+    return r ? (m + 'm ' + r + 's') : (m + 'm');
+}
 
-        // Completion code
-        const cc = c.completion_code || '—';
-        const ccColor = cc.indexOf('Answered') >= 0 ? '#28a745' :
-                        (cc.indexOf('Missed') >= 0 || cc.indexOf('Busy') >= 0) ? '#dc3545' : '#856404';
-
-        // Wrap up code
-        let wrapHtml = '<span class="no-data">Sin tipificación</span>';
-        if (c.wrap_up_code && c.wrap_up_code.title) {
-            const tp = c.wrap_up_code.type || '';
-            const tpCls = tp.indexOf('success') >= 0 ? 'wt-success' :
-                          tp.indexOf('fail') >= 0 ? 'wt-failure' : 'wt-neutral';
-            wrapHtml = '<div class="wrapup-row">'
-                     + '<span class="wrapup-title">' + esc(c.wrap_up_code.title) + '</span>'
-                     + (tp ? '<span class="wrapup-type ' + tpCls + '">' + esc(tp) + '</span>' : '')
-                     + '</div>';
-        }
-
-        // Tags
-        let tagsHtml = '<span class="no-data">Sin etiquetas</span>';
-        if (c.tags && c.tags.length) {
-            let t = '<div class="pill-row">';
-            for (let i = 0; i < c.tags.length; i++) {
-                t += '<span class="pill pill-tag">🏷 ' + esc(c.tags[i].tag_name) + '</span>';
-            }
-            tagsHtml = t + '</div>';
-        }
-
-        // Topics
-        let topicsHtml = '<span class="no-data">Sin temas</span>';
-        if (c.topics && c.topics.length) {
-            let t = '<div class="pill-row">';
-            for (let i = 0; i < c.topics.length; i++) {
-                t += '<span class="pill pill-topic">◆ ' + esc(c.topics[i].topic_name) + '</span>';
-            }
-            topicsHtml = t + '</div>';
-        }
-
-        // Comments
-        let commentsHtml = '<span class="no-data">Sin comentarios</span>';
-        if (c.comments && c.comments.length) {
-            let t = '';
-            for (let i = 0; i < c.comments.length; i++) {
-                const cm = c.comments[i];
-                t += '<div class="comment-block">'
-                   + '<div class="comment-text">💬 ' + esc(cm.comment) + '</div>'
-                   + '<div class="comment-date">' + fmtDate(cm.create_date) + '</div>'
-                   + '</div>';
-            }
-            commentsHtml = t;
-        }
-
-        // Build call_data section
-        const callDataFields = [
-            { key: 'NOMBRE_CLIENTE', label: 'Nombre Cliente' },
-            { key: 'PU', label: 'PU' },
-            { key: 'FECHA', label: 'Fecha' },
-            { key: 'CUBETA', label: 'Cubeta' },
-            { key: 'CUENTA', label: 'Cuenta' },
-            { key: 'MENSAJE', label: 'Mensaje' },
-            { key: 'PRODUCTO', label: 'Producto' },
-            { key: 'DESCUENTO', label: 'Descuento' },
-            { key: 'MATIURITY', label: 'Matiurity' },
-            { key: 'ROL_GRUPO', label: 'Rol Grupo' },
-            { key: 'SALDO_VENCIDO_INTEGRANTE', label: 'Saldo Vencido Integrante' }
-        ];
-
-        let callDataHTML = '';
-        for (let i = 0; i < callDataFields.length; i++) {
-            const field = callDataFields[i];
-            const value = callData[field.key] || '—';
-            callDataHTML += '<div class="call-data-item">'
-                          + '<div class="call-data-label">' + field.label + '</div>'
-                          + '<div class="call-data-value">' + esc(value) + '</div>'
-                          + '</div>';
-        }
-
-        return '<div class="call-card">'
-            + '<div class="card-header">'
-            +   '<div class="phone-row">'
-            +     '<span class="dir-badge">Saliente</span>'
-            +     '<span class="phone-num">📞 ' + esc(phoneB) + '</span>'
-            +   '</div>'
-            +   '<div class="header-right">'
-            +     '<span class="call-date">' + fmtDate(c.datetime_start) + '</span>'
-            +     '<span class="call-duration">' + durStr + '</span>'
-            +   '</div>'
-            + '</div>'
-            + '<div class="card-body">'
-            
-            +   '<div class="field">'
-            +     '<div class="fl">Finalización</div>'
-            +     '<div class="fv"><div class="completion-row">'
-            +       '<div class="comp-dot" style="background:' + ccColor + '"></div>'
-            +       '<span style="color:' + ccColor + ';font-weight:600;font-size:10px;">' + esc(cc) + '</span>'
-            +     '</div></div>'
-            +   '</div>'
-
-            +   '<div class="divider"></div>'
-
-            +   '<div class="field full">'
-            +     '<div class="fl">Tipificación (código / tipo)</div>'
-            +     '<div class="fv">' + wrapHtml + '</div>'
-            +   '</div>'
-
-            +   '<div class="field full">'
-            +     '<div class="fl">Etiquetas</div>'
-            +     '<div class="fv">' + tagsHtml + '</div>'
-            +   '</div>'
-
-            +   '<div class="field full">'
-            +     '<div class="fl">Temas</div>'
-            +     '<div class="fv">' + topicsHtml + '</div>'
-            +   '</div>'
-
-            +   '<div class="divider"></div>'
-
-            +   '<div class="field full">'
-            +     '<div class="fl">Comentarios</div>'
-            +     '<div class="fv">' + commentsHtml + '</div>'
-            +   '</div>'
-
-            +   '<div class="call-data-section">'
-            +     '<div class="call-data-title">📋 Datos de la Llamada</div>'
-            +     '<div class="call-data-grid">' + callDataHTML + '</div>'
-            +   '</div>'
-
-            + '</div>'
-            + '</div>';
-    }
-
-    function showState(which, msg) {
-        stateEmpty.classList.remove('visible');
-        stateLoad.classList.remove('visible');
-        stateError.classList.remove('visible');
-        callList.innerHTML = '';
-
-        if (which === 'loading') {
-            stateLoad.classList.add('visible');
-        } else if (which === 'error') {
-            document.getElementById('errorMsg').textContent = msg || 'Error desconocido';
-            stateError.classList.add('visible');
-        } else if (which === 'empty') {
-            document.querySelector('#stateEmpty .state-text').textContent =
-                msg || 'Ingresa un número de teléfono para buscar llamadas';
-            stateEmpty.classList.add('visible');
-        }
-    }
-
-    function fmtDate(str) {
-        if (!str) return 'N/A';
-        try {
-            const d = new Date(str.replace(' ', 'T'));
-            if (isNaN(d.getTime())) return str;
-            return d.toLocaleString('es-MX', {
-                day: '2-digit', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        } catch(e) { return str; }
-    }
-
-    function fmtSec(s) {
-        s = parseInt(s) || 0;
-        if (s < 60) return s + 's';
-        const m = Math.floor(s / 60), r = s % 60;
-        return r ? (m + 'm ' + r + 's') : (m + 'm');
-    }
-
-    function esc(str) {
-        if (str === null || str === undefined) return '';
-        return String(str)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    console.log('Historial de Llamadas loaded. Ready for searches.');
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 </script>
-</body>
-</html>
