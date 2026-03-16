@@ -30,130 +30,47 @@
 
 <script>
 
-const CONFIG = {
-    host:   'kitapi-us.voximplant.com',
-    domain: 'docegasmax',
-    token:  '32425f0118dd316f9c40d5022c5118604f56d82bc96bca464fb1e611569e9e63'
-};
+function showDebug(){
 
-function getCaller(){
+    const container = document.body;
+
+    const box = document.createElement("div");
+    box.style.padding = "20px";
+    box.style.fontFamily = "monospace";
+    box.style.background = "#111";
+    box.style.color = "#0f0";
+    box.style.fontSize = "12px";
+
+    box.innerHTML = "<h2>DEBUG IVR VARIABLES</h2>";
+
+    // URL completa
+    box.innerHTML += "<b>Full URL:</b><br>" + window.location.href + "<br><br>";
+
+    // Query params
+    box.innerHTML += "<b>Query Params:</b><br>";
     const params = new URLSearchParams(window.location.search);
-    return params.get('phone');
-}
 
-async function loadHistory(){
-
-    const phone = getCaller();
-
-    if(!phone){
-        showError("No se recibió callerid");
-        return;
-    }
-
-    document.getElementById("title").innerHTML =
-        "📞 Historial de llamadas del número <b>" + phone + "</b>";
-
-    try{
-
-        const url = `https://${CONFIG.host}/api/v4/history/searchCalls?domain=${CONFIG.domain}`;
-
-        const params = new URLSearchParams({
-            access_token: CONFIG.token,
-            phone: phone,
-            call_direction: 'incoming',
-            limit: 5,
-            with_campaigns: 'true',
-            with_tags: 'true',
-            with_wrap_up_code: 'true',
-            with_agent_campaign: 'true',
-            with_topics: 'true',
-            with_comments: 'true'
+    if([...params].length === 0){
+        box.innerHTML += "NO QUERY PARAMS<br>";
+    }else{
+        params.forEach((v,k)=>{
+            box.innerHTML += k + " = " + v + "<br>";
         });
-
-        const res = await fetch(url,{
-            method:'POST',
-            headers:{'Content-Type':'application/x-www-form-urlencoded'},
-            body: params
-        });
-
-        if(!res.ok) throw new Error("HTTP " + res.status);
-
-        const data = await res.json();
-
-        if(!data.success) throw new Error("API success false");
-
-        renderCalls(data.result || []);
-
-    }catch(e){
-        showError(e.message);
-    }
-}
-
-function renderCalls(calls){
-
-    document.getElementById("stateLoading").classList.remove("visible");
-
-    if(!calls.length){
-        document.getElementById("callList").innerHTML =
-            "<div class='state-box visible'><p>No hay historial de llamadas</p></div>";
-        return;
     }
 
-    let html = "";
-    calls.forEach(c => html += buildCard(c));
-    document.getElementById("callList").innerHTML = html;
+    // Hash
+    box.innerHTML += "<br><b>Hash:</b><br>" + window.location.hash + "<br>";
+
+    // Referrer
+    box.innerHTML += "<br><b>Referrer:</b><br>" + document.referrer + "<br>";
+
+    // Navigator
+    box.innerHTML += "<br><b>UserAgent:</b><br>" + navigator.userAgent + "<br>";
+
+    document.body.appendChild(box);
 }
 
-function buildCard(c){
-
-    const phoneA = (c.phone_a || '').replace(/@\S+/g, '');
-    const durStr = fmtSec(c.duration || 0);
-
-    let callData = {};
-    try{
-        if(c.call_data) callData = JSON.parse(c.call_data);
-    }catch(e){}
-
-    const cc = c.completion_code || '—';
-    const ccColor = cc.includes('Answered') ? '#28a745'
-        : (cc.includes('Missed') || cc.includes('Busy')) ? '#dc3545'
-        : '#856404';
-
-    return `
-    <div class="call-card">
-        <div class="card-header">
-            <div class="phone-row">
-                <span class="dir-badge">Entrante</span>
-                <span class="phone-num">📞 ${phoneA}</span>
-            </div>
-            <div class="header-right">
-                <span class="call-date">${fmtDate(c.datetime_start)}</span>
-                <span class="call-duration">${durStr}</span>
-            </div>
-        </div>
-    </div>`;
-}
-
-function showError(msg){
-    document.getElementById("stateLoading").classList.remove("visible");
-    document.getElementById("errorMsg").innerText = msg;
-    document.getElementById("stateError").classList.add("visible");
-}
-
-function fmtDate(str){
-    if(!str) return "N/A";
-    const d = new Date(str.replace(' ', 'T'));
-    return d.toLocaleString();
-}
-
-function fmtSec(s){
-    s = parseInt(s)||0;
-    if(s<60) return s+"s";
-    const m=Math.floor(s/60), r=s%60;
-    return r? m+"m "+r+"s" : m+"m";
-}
-
-loadHistory();
+showDebug();
 
 </script>
 
